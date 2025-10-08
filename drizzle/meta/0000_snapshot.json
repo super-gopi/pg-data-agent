@@ -1,0 +1,179 @@
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "prevId": "",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.supply_chain_data": {
+      "name": "supply_chain_data",
+      "schema": "",
+      "columns": {
+        "product_type": {
+          "name": "product_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sku": {
+          "name": "sku",
+          "type": "varchar(50)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "availability": {
+          "name": "availability",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "number_of_products_sold": {
+          "name": "number_of_products_sold",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revenue_generated": {
+          "name": "revenue_generated",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "customer_demographics": {
+          "name": "customer_demographics",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stock_levels": {
+          "name": "stock_levels",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lead_times": {
+          "name": "lead_times",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "order_quantities": {
+          "name": "order_quantities",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shipping_times": {
+          "name": "shipping_times",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shipping_carriers": {
+          "name": "shipping_carriers",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shipping_costs": {
+          "name": "shipping_costs",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supplier_name": {
+          "name": "supplier_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location": {
+          "name": "location",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lead_time": {
+          "name": "lead_time",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "production_volumes": {
+          "name": "production_volumes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manufacturing_lead_time": {
+          "name": "manufacturing_lead_time",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manufacturing_costs": {
+          "name": "manufacturing_costs",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inspection_results": {
+          "name": "inspection_results",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "defect_rates": {
+          "name": "defect_rates",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transportation_modes": {
+          "name": "transportation_modes",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "routes": {
+          "name": "routes",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "costs": {
+          "name": "costs",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {},
+      "policies": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "tables": {}
+  }
+}
