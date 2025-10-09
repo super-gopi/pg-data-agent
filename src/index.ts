@@ -10,23 +10,9 @@ async function main() {
 		const wsClient = new WebSocketClient();
 
 		// Connect to WebSocket server
-		console.log('Connecting to WebSocket server...');
 		await wsClient.connect();
 
-		// Send initial connection message
-		// wsClient.send({
-		//   type: 'connection',
-		//   message: 'Node.js client connected',
-		//   timestamp: new Date().toISOString(),
-		// });
-
 		console.log('✓ Application ready and listening for messages');
-
-		//ask for project components
-		await wsClient.getComponents().catch((e) => {
-			console.error('Error getting components:', e);
-		});
-		
 
 		// Handle graceful shutdown
 		process.on('SIGINT', () => {

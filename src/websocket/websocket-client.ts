@@ -13,12 +13,7 @@ export class WebSocketClient {
 	private reconnectAttempts: number = 0;
 	private maxReconnectAttempts: number = 10;
 	private shouldReconnect: boolean = true;
-	private timeout: number = 3000; // 30 seconds default timeout
-	private pendingRequests: Map<string, {
-		resolve: (data: any) => void;
-		reject: (error: Error) => void;
-		timeoutId: NodeJS.Timeout;
-	}> = new Map();
+
 	private components: Component[] = [];
 
 	constructor(url?: string, timeout?: number) {
@@ -28,22 +23,24 @@ export class WebSocketClient {
 			throw new Error('WEBSOCKET_URL is not defined in environment variables');
 		}
 
-		if (timeout) {
-			this.timeout = timeout;
-		}
 	}
 
 	connect(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			try {
-				console.log(`Connecting to WebSocket server: ${this.url}`);
 				const user_id = process.env.USER_ID || 'user123';
+				const project_id = process.env.PROJECT_ID || 'project123';
+
 				const ws_url = new URL(this.url);
+
 				ws_url.searchParams.set('userId', user_id);
+				ws_url.searchParams.set('projectId', project_id);
+				ws_url.searchParams.set('type', 'data-agent');
+
+				console.log("connecting to websocket", ws_url.toString());
 				this.ws = new WebSocket(ws_url.toString());
 
 				this.ws.on('open', () => {
-					console.log('✓ WebSocket connected successfully');
 					this.reconnectAttempts = 0;
 					resolve();
 				});
@@ -59,17 +56,7 @@ export class WebSocketClient {
 
 				this.ws.on('close', (code: number, reason: Buffer) => {
 					console.log(`WebSocket closed: ${code} - ${reason.toString()}`);
-					// Reject all pending requests
-					this.pendingRequests.forEach((request) => {
-						clearTimeout(request.timeoutId);
-						request.reject(new Error('WebSocket disconnected'));
-					});
-					this.pendingRequests.clear();
 					this.handleReconnect();
-				});
-
-				this.ws.on('ping', () => {
-					this.ws?.pong();
 				});
 
 			} catch (error) {
@@ -79,46 +66,36 @@ export class WebSocketClient {
 	}
 
 	private handleMessage(data: WebSocket.Data): void {
-		try {
-			const message = data.toString();
-			console.log('Received message:', message);
+		const message = data.toString();
+		console.log('Received message:', message);
 
-			// Try to parse as JSON
-			try {
-				const jsonData = JSON.parse(message);
+		let json:any = {};
 
-				// Check if this message is a response to a pending request
-				const messageId = jsonData.id;
-				if (messageId && this.pendingRequests.has(messageId)) {
-					const request = this.pendingRequests.get(messageId)!;
-					clearTimeout(request.timeoutId);
-					this.pendingRequests.delete(messageId);
-					console.log('Resolving request for messageId:', messageId);
-					request.resolve(jsonData);
-				} else {
-					// Normal message, pass to message handler
-					this.onMessage(jsonData);
-				}
-			} catch {
-				// If not JSON, handle as plain text
-				this.onMessage(message);
-			}
-		} catch (error) {
-			console.error('Error handling message:', error);
+		try{
+			json = JSON.parse(message);
+		} catch (e) {
+			console.log('Error parsing message as JSON:', e);
+
 		}
+
+		this.onMessage(json);
+
 	}
 
 	private onMessage(data: any): void {
-		console.log('Message received:', data);
-		if (typeof data === 'object') {
-			if (data.type === 'data_req') {
-				this.handleDataReq(data);
-			} else if (data.type === 'user_prompt_suggestions') {
-				console.log('Connection acknowledged by server');
-			} else if (data.type === 'user_prompt_req') {
-				this.handleUserPromptReq(data);
-			}
-		} else {
+		if (data.type === 'data_req') {
+			this.handleDataReq(data);
+		} 
+		else if (data.type === 'user_prompt_suggestions') {
+			console.log('Connection acknowledged by server');
+		} 
+		else if (data.type === 'user_prompt_req') {
+			this.handleUserPromptReq(data);
+		} 
+		else if (data.type === 'component_list') {
+			this.handleComponentListRes(data);
+		}
+		else {
 			console.warn('Unknown message type:', data);
 		}
 	}
@@ -139,27 +116,6 @@ export class WebSocketClient {
 		}
 	}
 
-	async sendWithResponse(messageId: string, message: any, timeout?: number): Promise<any> {
-		return new Promise((resolve, reject) => {
-			if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-				reject(new Error('WebSocket is not connected'));
-				return;
-			}
-
-			const timeoutMs = timeout ?? this.timeout;
-
-			const timeoutId = setTimeout(() => {
-				this.pendingRequests.delete(messageId);
-				reject(new Error(`WebSocket timeout after ${timeoutMs}ms`));
-			}, timeoutMs);
-
-			this.pendingRequests.set(messageId, { resolve, reject, timeoutId });
-
-			const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
-			this.ws.send(messageStr);
-		});
-	}
-
 	async handleDataReq(data: WebSocketMessage) {
 		const id = data.id || 'unknown';
 
@@ -168,7 +124,13 @@ export class WebSocketClient {
 			let response: any = {
 				id: id,
 				type: 'data_res',
-				from: 'data_agent',
+				from: {
+					type: 'data_agent',
+				},
+				to:{
+					type: 'runtime',
+					id: data.from?.id,
+				},
 				payload: null
 			}
 
@@ -184,7 +146,6 @@ export class WebSocketClient {
 				console.error('Query execution failed:', result.errors);
 				response.payload = result.errors;
 			}
-			console.log('Query executed, preparing to send result...');
 			// Send result back to server
 			response.payload = result.data;
 
@@ -196,7 +157,13 @@ export class WebSocketClient {
 			this.send({
 				id: id,
 				type: 'data_res',
-				from: 'data_agent',
+				from: {
+					type: 'data_agent',
+				},
+				to:{
+					type: 'runtime',
+					id: data.from?.id,
+				},
 				payload: error instanceof Error ? error.message : 'Unknown error'
 			});
 		}
@@ -211,14 +178,19 @@ export class WebSocketClient {
 				throw new Error('Prompt cannot be empty');
 			}
 
-			console.log('Received user prompt:', prompt);
 
 			//use groq to get suggestions
 
-			const response = {
+			const response: WebSocketMessage = {
 				id: id,
 				type: 'user_prompt_suggestions_res',
-				from: 'data_agent',
+				from: {
+					type: 'data_agent',
+				},
+				to:{
+					type: 'runtime',
+					id: data.from?.id,
+				},
 				payload: null
 			};
 
@@ -230,7 +202,13 @@ export class WebSocketClient {
 			this.send({
 				id: id,
 				type: 'user_prompt_suggestions_res',
-				from: 'data_agent',
+				from: {
+					type: 'data_agent',
+				},
+				to:{
+					type: 'runtime',
+					id: data.from?.id,
+				},
 				payload: error instanceof Error ? error.message : 'Unknown error'
 			});
 		}
@@ -245,23 +223,27 @@ export class WebSocketClient {
 				throw new Error('Prompt cannot be empty');
 			}
 
-			console.log('Received user prompt:', prompt);
 
 			// Check if components are loaded in memory
 			if (this.components.length === 0) {
 				throw new Error('Components not loaded. Please ensure components are fetched first.');
 			}
 
-			console.log(`Using ${this.components.length} components from memory`);
 
 			// Use Groq to match component
 			console.log('Matching component using Groq LLM...');
 			const matchResult = await matchComponentFromPrompt(prompt, this.components);
 
-			const response = {
+			const response: WebSocketMessage = {
 				id: id,
 				type: 'user_prompt_res',
-				from: 'data_agent',
+				from: {
+					type: 'data_agent',
+				},
+				to:{
+					type: 'runtime',
+					id: data.from?.id,
+				},
 				payload: {
 					component: matchResult.component,
 					reasoning: matchResult.reasoning
@@ -276,43 +258,17 @@ export class WebSocketClient {
 			this.send({
 				id: id,
 				type: 'user_prompt_res',
-				from: 'data_agent',
+				from: {
+					type: 'data_agent',
+				},
+				to:{
+					type: 'runtime',
+					id: data.from?.id,
+				},
 				payload: { error: error instanceof Error ? error.message : 'Unknown error' }
 			});
 		}
 	}
-
-
-	//ask for project components
-	async getComponents() {
-		try {
-			console.log('Requesting component list from frontend...');
-			const componentListRequest = {
-				id: `component-list-${Date.now()}`,
-				type: 'component_list_req',
-				from: 'data_agent',
-				payload: {}
-			};
-
-			const response = await this.sendWithResponse(
-				componentListRequest.id,
-				componentListRequest,
-				30000 // 30 second timeout
-			);
-
-			console.log('Received component list:', response);
-
-			// Store components in memory
-			this.components = response.payload || response;
-			console.log(`✓ Stored ${this.components.length} components in memory`);
-
-			return this.components;
-		} catch (error) {
-			console.error('Failed to get component list:', error);
-			throw error;
-		}
-	}
-
 
 	private handleReconnect(): void {
 		if (!this.shouldReconnect) {
@@ -333,6 +289,13 @@ export class WebSocketClient {
 				console.error('Reconnection failed:', error.message);
 			});
 		}, this.reconnectInterval);
+	}
+
+	private handleComponentListRes(data: WebSocketMessage) {
+		// Store components in memory
+		this.components = data.payload?.components || [];
+		console.log(`✓ Stored ${this.components.length} components in memory`);
+
 	}
 
 	disconnect(): void {
