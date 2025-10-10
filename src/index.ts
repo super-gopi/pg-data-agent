@@ -1,5 +1,6 @@
 import { queryTable, QueryParams, executeRawSQL } from './db/queries';
 import { supplyChainData } from './db/schema';
+import { SASDK } from './main';
 import { WebSocketClient } from './websocket/websocket-client';
 
 async function main() {
@@ -21,6 +22,8 @@ async function main() {
 			process.exit(0);
 		});
 
+		SASDK();
+	
 	} catch (error) {
 		console.error('Error starting application:', error);
 		process.exit(1);

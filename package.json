@@ -13,6 +13,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@superatomai/sdk": "^0.0.7",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.6",
     "groq-sdk": "^0.33.0",

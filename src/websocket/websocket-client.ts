@@ -67,12 +67,13 @@ export class WebSocketClient {
 
 	private handleMessage(data: WebSocket.Data): void {
 		const message = data.toString();
-		console.log('Received message:', message);
+		console.log('Received message:');
 
 		let json:any = {};
 
 		try{
 			json = JSON.parse(message);
+			console.log('Parsed message:', json.type, json.from?.type, json.to?.type);
 		} catch (e) {
 			console.log('Error parsing message as JSON:', e);
 
