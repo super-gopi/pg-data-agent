@@ -1,8 +1,12 @@
 import WebSocket from 'ws';
 import dotenv from 'dotenv';
 import { executeRawSQL } from '../db/queries';
-import { matchComponentFromPrompt, Component } from '../llm/groq-client';
+import { matchComponentFromGroq } from '../userResponse/groq-client';
 import { WebSocketMessage } from './types';
+import CHROMACOLLECTION from '../chromadb/collections';
+import { Component } from '../userResponse/types';
+import { matchComponentFromChromaDB } from '../userResponse/chorma-vector-search';
+import { get_user_response } from '../userResponse';
 
 dotenv.config();
 
@@ -216,48 +220,11 @@ export class WebSocketClient {
 	}
 
 	async handleUserPromptReq(data: any) {
-		const id = data.id || 'unknown';
-		const prompt = data.payload?.prompt || '';
-
-		try {
-			if (!prompt || prompt.trim().length === 0) {
-				throw new Error('Prompt cannot be empty');
-			}
-
-
-			// Check if components are loaded in memory
-			if (this.components.length === 0) {
-				throw new Error('Components not loaded. Please ensure components are fetched first.');
-			}
-
-
-			// Use Groq to match component
-			console.log('Matching component using Groq LLM...');
-			const matchResult = await matchComponentFromPrompt(prompt, this.components);
-
-			const response: WebSocketMessage = {
-				id: id,
-				type: 'user_prompt_res',
-				from: {
-					type: 'data_agent',
-				},
-				to:{
-					type: 'runtime',
-					id: data.from?.id,
-				},
-				payload: {
-					component: matchResult.component,
-					reasoning: matchResult.reasoning
-				}
-			};
-
-			this.send(JSON.stringify(response));
-			console.log('Sent user prompt response with matched component:', matchResult.component?.name);
-
-		} catch (error) {
-			console.error('Error handling user prompt:', error);
+		
+		const response = await get_user_response(data, this.components);
+		if(!response.success) {
 			this.send({
-				id: id,
+				id: data.id,
 				type: 'user_prompt_res',
 				from: {
 					type: 'data_agent',
@@ -266,9 +233,13 @@ export class WebSocketClient {
 					type: 'runtime',
 					id: data.from?.id,
 				},
-				payload: { error: error instanceof Error ? error.message : 'Unknown error' }
-			});
+				payload: { error: response.reason }
+			});	
+			return;
 		}
+
+		this.send(JSON.stringify(response.response));
+
 	}
 
 	private handleReconnect(): void {
@@ -292,11 +263,45 @@ export class WebSocketClient {
 		}, this.reconnectInterval);
 	}
 
-	private handleComponentListRes(data: WebSocketMessage) {
+	private async handleComponentListRes(data: WebSocketMessage) {
 		// Store components in memory
 		this.components = data.payload?.components || [];
 		console.log(`✓ Stored ${this.components.length} components in memory`);
 
+		// Store the components to ChromaDB (only if using ChromaDB method)
+		const matchingMethod = process.env.COMPONENT_MATCHING_METHOD || 'chromadb';
+
+		if (matchingMethod === 'chromadb') {
+			try {
+				const projectId = process.env.PROJECT_ID || '';
+				const collectionName = projectId + '_components';
+				const forceRecreate = process.env.FORCE_RECREATE_COLLECTION === 'true';
+
+				// Check if collection exists and has components
+				const exists = await CHROMACOLLECTION.collectionExists(collectionName);
+
+				if (exists && !forceRecreate) {
+					const count = await CHROMACOLLECTION.getCollectionCount(collectionName);
+					console.log(`Collection "${collectionName}" already exists with ${count} components. Skipping addition.`);
+					console.log('💡 To recreate with improved embeddings, set FORCE_RECREATE_COLLECTION=true in .env');
+				} else {
+					if (exists && forceRecreate) {
+						console.log(`🔄 Force recreating collection "${collectionName}"...`);
+						await CHROMACOLLECTION.deleteCollection(collectionName);
+					}
+					// Collection doesn't exist, create and add components
+					console.log(`Creating new collection "${collectionName}" and adding components...`);
+					await CHROMACOLLECTION.addComponents(collectionName, this.components);
+					console.log('✓ Components successfully stored in ChromaDB with improved embeddings');
+				}
+			} catch (error) {
+				console.error('⚠️  ChromaDB not available:', (error as Error).message);
+				console.log('Falling back to Groq LLM method. Set COMPONENT_MATCHING_METHOD=groq in .env to avoid this warning.');
+				// Don't throw - allow the application to continue even if ChromaDB storage fails
+			}
+		} else {
+			console.log('Using Groq LLM method - ChromaDB storage skipped');
+		}
 	}
 
 	disconnect(): void {
