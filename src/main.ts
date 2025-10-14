@@ -1,11 +1,14 @@
 import { SuperatomSDK } from '@superatomai/sdk';
 import { executeRawSQL } from './db/queries';
+
+
+const bundleDir = process.env.BUNDLE_DIR || '/home/gopinadh/superatom/snowflake-dataset/frontend/dist/assets';
  
 // Initialize and connect to SuperAtom
 const sdk = new SuperatomSDK({
   apiKey: 'YOUR_API_KEY',
   projectId: "snowflake-dataset",
-  bundleDir: "/home/gopinadh/superatom/snowflake-dataset/frontend/dist/assets",
+  bundleDir: bundleDir,
   type: "data-agent",
   userId: "gopi",
 });
