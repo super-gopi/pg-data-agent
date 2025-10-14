@@ -21,7 +21,7 @@ async function main() {
 			process.exit(0);
 		});
 
-		// SASDK();
+		SASDK();
 	
 	} catch (error) {
 		console.error('Error starting application:', error);

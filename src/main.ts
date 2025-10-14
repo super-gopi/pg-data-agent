@@ -4,10 +4,10 @@ import { executeRawSQL } from './db/queries';
 // Initialize and connect to SuperAtom
 const sdk = new SuperatomSDK({
   apiKey: 'YOUR_API_KEY',
-  projectId: "project123",
-  bundleDir: "/home/gopinadh/superatom/project-runtime/dist/assets",
+  projectId: "snowflake-dataset",
+  bundleDir: "/home/gopinadh/superatom/snowflake-dataset/frontend/dist/assets",
   type: "data-agent",
-  userId: "user123",
+  userId: "gopi",
 });
  
 export async function SASDK() {
@@ -31,5 +31,3 @@ export async function SASDK() {
   }
 }
  
-// Run the main function
-// main();

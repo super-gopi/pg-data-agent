@@ -7,6 +7,7 @@ import CHROMACOLLECTION from '../chromadb/collections';
 import { Component } from '../userResponse/types';
 import { matchComponentFromChromaDB } from '../userResponse/chorma-vector-search';
 import { get_user_response } from '../userResponse';
+import SNOWFLAKE from '../snowflake';
 
 dotenv.config();
 
@@ -32,8 +33,8 @@ export class WebSocketClient {
 	connect(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			try {
-				const user_id = process.env.USER_ID || 'user123';
-				const project_id = process.env.PROJECT_ID || 'project123';
+				const user_id = process.env.USER_ID || 'gopi';
+				const project_id = process.env.PROJECT_ID || 'snowflake-dataset';
 
 				const ws_url = new URL(this.url);
 
@@ -90,13 +91,13 @@ export class WebSocketClient {
 	private onMessage(data: any): void {
 		if (data.type === 'data_req') {
 			this.handleDataReq(data);
-		} 
-		else if (data.type === 'user_prompt_suggestions') {
-			console.log('Connection acknowledged by server');
-		} 
+		}
+		else if (data.type === 'sf_data_req') {
+			this.handleSfDataReq(data);
+		}
 		else if (data.type === 'user_prompt_req') {
 			this.handleUserPromptReq(data);
-		} 
+		}
 		else if (data.type === 'component_list') {
 			this.handleComponentListRes(data);
 		}
@@ -154,9 +155,7 @@ export class WebSocketClient {
 			// Send result back to server
 			response.payload = result.data;
 
-			// console.log('Sending response:', response);
 			this.send(JSON.stringify(response));
-			console.log('Query result sent back to server');
 		} catch (error) {
 			console.error('Error processing message:', error);
 			this.send({
@@ -170,6 +169,53 @@ export class WebSocketClient {
 					id: data.from?.id,
 				},
 				payload: error instanceof Error ? error.message : 'Unknown error'
+			});
+		}
+	}
+
+	async handleSfDataReq(data: WebSocketMessage) {
+		const id = data.id || 'unknown';
+
+		try {
+			const query = data.payload?.query;
+			let response: any = {
+				id: id,
+				type: 'sf_data_res',
+				from: {
+					type: 'data_agent',
+				},
+				to: {
+					type: 'runtime',
+					id: data.from?.id,
+				},
+				payload: null
+			};
+
+			if (!query || query.trim().length === 0) {
+				response.payload = { error: 'Invalid query' };
+				this.send(JSON.stringify(response));
+				return;
+			}
+			// Execute Snowflake query
+			const result = await SNOWFLAKE.execute_query(query);
+
+			// Send result back to server
+			response.payload = result;
+
+			this.send(JSON.stringify(response));
+		} catch (error) {
+			console.error('Error processing Snowflake query:', error);
+			this.send({
+				id: id,
+				type: 'sf_data_res',
+				from: {
+					type: 'data_agent',
+				},
+				to: {
+					type: 'runtime',
+					id: data.from?.id,
+				},
+				payload: { error: error instanceof Error ? error.message : 'Unknown error' }
 			});
 		}
 	}
@@ -200,7 +246,6 @@ export class WebSocketClient {
 			};
 
 			this.send(JSON.stringify(response));
-			console.log('Sent user prompt suggestions response');
 
 		} catch (error) {
 			console.error('Error handling user prompt suggestions:', error);
@@ -282,25 +327,20 @@ export class WebSocketClient {
 
 				if (exists && !forceRecreate) {
 					const count = await CHROMACOLLECTION.getCollectionCount(collectionName);
-					console.log(`Collection "${collectionName}" already exists with ${count} components. Skipping addition.`);
-					console.log('💡 To recreate with improved embeddings, set FORCE_RECREATE_COLLECTION=true in .env');
 				} else {
 					if (exists && forceRecreate) {
-						console.log(`🔄 Force recreating collection "${collectionName}"...`);
 						await CHROMACOLLECTION.deleteCollection(collectionName);
 					}
 					// Collection doesn't exist, create and add components
 					console.log(`Creating new collection "${collectionName}" and adding components...`);
 					await CHROMACOLLECTION.addComponents(collectionName, this.components);
-					console.log('✓ Components successfully stored in ChromaDB with improved embeddings');
 				}
 			} catch (error) {
 				console.error('⚠️  ChromaDB not available:', (error as Error).message);
-				console.log('Falling back to Groq LLM method. Set COMPONENT_MATCHING_METHOD=groq in .env to avoid this warning.');
+				console.error('Falling back to Groq LLM method. Set COMPONENT_MATCHING_METHOD=groq in .env to avoid this warning.');
 				// Don't throw - allow the application to continue even if ChromaDB storage fails
 			}
 		} else {
-			console.log('Using Groq LLM method - ChromaDB storage skipped');
 		}
 	}
 

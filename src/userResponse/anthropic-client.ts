@@ -1,15 +1,16 @@
-import Groq from 'groq-sdk';
+import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
-import CHROMACOLLECTION from '../chromadb/collections';
 
 import { Component } from './types';
 import { generateSchemaDocumentation } from './utils';
 
 dotenv.config();
 
-const groq = new Groq({
-	apiKey: process.env.GROQ_API_KEY
+const anthropic = new Anthropic({
+	apiKey: process.env.ANTHROPIC_API_KEY
 });
+
+const ANTHROPIC_MODEL = 'claude-sonnet-4-5-20250929'
 
 
 
@@ -110,25 +111,32 @@ Component type: ${componentType}
 
 Analyze the user's request and modify the props accordingly. Return the complete modified props object.`;
 
-		const chatCompletion = await groq.chat.completions.create({
+		const message = await anthropic.messages.create({
+			model: ANTHROPIC_MODEL,
+			max_tokens: 2500,
+			temperature: 0.2,
+			system: systemPrompt,
 			messages: [
-				{
-					role: 'system',
-					content: systemPrompt
-				},
 				{
 					role: 'user',
 					content: userMessage
 				}
-			],
-			model: 'llama-3.3-70b-versatile',
-			temperature: 0.2,
-			max_tokens: 2500,
-			response_format: { type: 'json_object' }
+			]
 		});
 
-		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
-		const result = JSON.parse(responseText);
+		// Extract text content from the response
+		const textContent = message.content.find(block => block.type === 'text');
+		const responseText = textContent && textContent.type === 'text' ? textContent.text : '{}';
+
+		// Parse JSON from the response (handle potential markdown code blocks)
+		let jsonText = responseText.trim();
+		if (jsonText.startsWith('```json')) {
+			jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
+		} else if (jsonText.startsWith('```')) {
+			jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
+		}
+
+		const result = JSON.parse(jsonText);
 
 		return {
 			props: result.props || originalProps,
@@ -137,7 +145,7 @@ Analyze the user's request and modify the props accordingly. Return the complete
 			modifications: result.modifications || []
 		};
 	} catch (error) {
-		console.error('Error validating/modifying props with Groq:', error);
+		console.error('Error validating/modifying props with Anthropic:', error);
 		// Return original props if error occurs
 		return {
 			props: originalProps,
@@ -197,25 +205,32 @@ export async function validateAndModifyQuery(
 
     Does this query match the user's request? If not, modify it accordingly.`;
 
-		const chatCompletion = await groq.chat.completions.create({
+		const message = await anthropic.messages.create({
+			model: ANTHROPIC_MODEL,
+			max_tokens: 1500,
+			temperature: 0.2,
+			system: systemPrompt,
 			messages: [
-				{
-					role: 'system',
-					content: systemPrompt
-				},
 				{
 					role: 'user',
 					content: userMessage
 				}
-			],
-			model: 'llama-3.3-70b-versatile',
-			temperature: 0.2,
-			max_tokens: 1500,
-			response_format: { type: 'json_object' }
+			]
 		});
 
-		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
-		const result = JSON.parse(responseText);
+		// Extract text content from the response
+		const textContent = message.content.find(block => block.type === 'text');
+		const responseText = textContent && textContent.type === 'text' ? textContent.text : '{}';
+
+		// Parse JSON from the response (handle potential markdown code blocks)
+		let jsonText = responseText.trim();
+		if (jsonText.startsWith('```json')) {
+			jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
+		} else if (jsonText.startsWith('```')) {
+			jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
+		}
+
+		const result = JSON.parse(jsonText);
 
 		return {
 			query: result.query || originalQuery,
@@ -223,7 +238,7 @@ export async function validateAndModifyQuery(
 			reasoning: result.reasoning || 'No reasoning provided'
 		};
 	} catch (error) {
-		console.error('Error validating/modifying query with Groq:', error);
+		console.error('Error validating/modifying query with Anthropic:', error);
 		// Return original query if error occurs
 		return {
 			query: originalQuery,
@@ -314,25 +329,32 @@ Respond with a JSON object:
 
 Analyze this question and generate the appropriate visualization with SQL query.`;
 
-		const chatCompletion = await groq.chat.completions.create({
+		const message = await anthropic.messages.create({
+			model: ANTHROPIC_MODEL,
+			max_tokens: 2000,
+			temperature: 0.2,
+			system: systemPrompt,
 			messages: [
-				{
-					role: 'system',
-					content: systemPrompt
-				},
 				{
 					role: 'user',
 					content: userMessage
 				}
-			],
-			model: 'llama-3.3-70b-versatile',
-			temperature: 0.2,
-			max_tokens: 2000,
-			response_format: { type: 'json_object' }
+			]
 		});
 
-		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
-		const result = JSON.parse(responseText);
+		// Extract text content from the response
+		const textContent = message.content.find(block => block.type === 'text');
+		const responseText = textContent && textContent.type === 'text' ? textContent.text : '{}';
+
+		// Parse JSON from the response (handle potential markdown code blocks)
+		let jsonText = responseText.trim();
+		if (jsonText.startsWith('```json')) {
+			jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
+		} else if (jsonText.startsWith('```')) {
+			jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
+		}
+
+		const result = JSON.parse(jsonText);
 
 		if (!result.canGenerate) {
 			return {
@@ -358,7 +380,6 @@ Analyze this question and generate the appropriate visualization with SQL query.
 			}
 		};
 
-
 		return {
 			component: dynamicComponent,
 			reasoning: result.reasoning || 'Generated dynamic component based on analytical question',
@@ -374,8 +395,8 @@ Analyze this question and generate the appropriate visualization with SQL query.
 	}
 }
 
-// Using Groq LLM to match component from a list with enhanced props modification
-export async function matchComponentFromGroq(
+// Using Anthropic Claude to match component from a list with enhanced props modification
+export async function matchComponentFromAnthropic(
 	userPrompt: string,
 	components: Component[]
 ): Promise<{
@@ -440,7 +461,7 @@ ${componentsText}
 **Output Requirements:**
 
 Respond with a JSON object containing:
-- componentIndex: the 1-based index of the BEST matching component (or null if confidence < 30%)
+- componentIndex: the 1-based index of the BEST matching component (or null if confidence < 50%)
 - componentId: the ID of the matched component
 - reasoning: detailed explanation of why this component was chosen
 - confidence: confidence score 0-100 (100 = perfect match)
@@ -459,30 +480,37 @@ Example response:
 }
 
 **Important:**
-- Only return componentIndex if confidence >= 30%
+- Only return componentIndex if confidence >= 50%
 - Return null if no reasonable match exists
 - Prefer components that exactly match the user's metric over generic ones
 - Consider the full context of the request, not just individual words`;
 
-		const chatCompletion = await groq.chat.completions.create({
+		const message = await anthropic.messages.create({
+			model: ANTHROPIC_MODEL,
+			max_tokens: 800,
+			temperature: 0.2,
+			system: systemPrompt,
 			messages: [
-				{
-					role: 'system',
-					content: systemPrompt
-				},
 				{
 					role: 'user',
 					content: `User request: "${userPrompt}"\n\nFind the best matching component and explain your reasoning with a confidence score.`
 				}
-			],
-			model: 'llama-3.3-70b-versatile',
-			temperature: 0.2,
-			max_tokens: 800,
-			response_format: { type: 'json_object' }
+			]
 		});
 
-		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
-		const result = JSON.parse(responseText);
+		// Extract text content from the response
+		const textContent = message.content.find(block => block.type === 'text');
+		const responseText = textContent && textContent.type === 'text' ? textContent.text : '{}';
+
+		// Parse JSON from the response (handle potential markdown code blocks)
+		let jsonText = responseText.trim();
+		if (jsonText.startsWith('```json')) {
+			jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
+		} else if (jsonText.startsWith('```')) {
+			jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
+		}
+
+		const result = JSON.parse(jsonText);
 
 		const componentIndex = result.componentIndex;
 		const componentId = result.componentId;
@@ -499,7 +527,7 @@ Example response:
 			component = components[componentIndex - 1];
 		}
 
-		console.log('✓ Groq matched component:', component?.name || 'None');
+		console.log('✓ Anthropic matched component:', component?.name || 'None');
 
 		if (result.alternativeMatches && result.alternativeMatches.length > 0) {
 			console.log('  Alternative matches:');
@@ -519,7 +547,7 @@ Example response:
 				return {
 					component: generatedResult.component,
 					reasoning: generatedResult.reasoning,
-					method: 'groq-generated',
+					method: 'anthropic-generated',
 					confidence: 100, // Generated components are considered 100% match to the question
 					propsModified: false,
 					queryModified: false
@@ -530,7 +558,7 @@ Example response:
 			return {
 				component: null,
 				reasoning: result.reasoning || 'No matching component found and unable to generate dynamic component',
-				method: 'groq-llm',
+				method: 'anthropic-llm',
 				confidence
 			};
 		}
@@ -542,6 +570,7 @@ Example response:
 		let queryReasoning = '';
 
 		if (component && component.props) {
+
 			const propsValidation = await validateAndModifyProps(
 				userPrompt,
 				component.props,
@@ -573,11 +602,11 @@ Example response:
 			queryReasoning,
 			propsModified,
 			propsModifications,
-			method: 'groq-llm',
+			method: 'anthropic-llm',
 			confidence
 		};
 	} catch (error) {
-		console.error('Error matching component with Groq:', error);
+		console.error('Error matching component with Anthropic:', error);
 		throw error;
 	}
 }

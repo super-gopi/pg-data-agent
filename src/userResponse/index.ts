@@ -2,6 +2,7 @@ import CHROMACOLLECTION from "../chromadb/collections";
 import { WebSocketMessage } from "../websocket/types";
 import { matchComponentFromChromaDB } from "./chorma-vector-search";
 import { matchComponentFromGroq } from "./groq-client";
+import { matchComponentFromAnthropic } from "./anthropic-client";
 import { Component } from "./types";
 
 export const get_user_response = async (data:any, components: Component[]) => {
@@ -17,7 +18,7 @@ export const get_user_response = async (data:any, components: Component[]) => {
 
         // Get matching method from environment variable (default: 'chromadb')
         const matchingMethod = process.env.COMPONENT_MATCHING_METHOD || 'chromadb';
-        let matchResult;
+        let matchResult:any;
 
         if (matchingMethod === 'groq') {
             // Method 1: Use Groq LLM to match from in-memory components
@@ -28,8 +29,17 @@ export const get_user_response = async (data:any, components: Component[]) => {
             }
 
             matchResult = await matchComponentFromGroq(prompt, components);
+        } else if (matchingMethod === 'anthropic') {
+            // Method 2: Use Anthropic Claude to match from in-memory components
+            console.log('Using Anthropic Claude matching method...');
+
+            if (components.length === 0) {
+                return {success: false, reason: 'Components not loaded in memory. Please ensure components are fetched first.'};
+            }
+
+            matchResult = await matchComponentFromAnthropic(prompt, components);
         } else {
-            // Method 2: Use ChromaDB vector search
+            // Method 3: Use ChromaDB vector search
             console.log('Using ChromaDB vector search matching method...');
 
             try {
@@ -45,7 +55,7 @@ export const get_user_response = async (data:any, components: Component[]) => {
 
                 matchResult = await matchComponentFromChromaDB(prompt, collectionName, 5);
             } catch (chromaError) {
-                // Fallback to Groq method if ChromaDB fails
+                // Fallback to Groq method if ChromaDB fails (can also fallback to Anthropic if preferred)
                 console.error('⚠️  ChromaDB error, falling back to Groq LLM method:', (chromaError as Error).message);
 
                 if (components.length === 0) {
@@ -72,13 +82,18 @@ export const get_user_response = async (data:any, components: Component[]) => {
                 reasoning: matchResult.reasoning,
                 queryModified: matchResult.queryModified,
                 queryReasoning: matchResult.queryReasoning,
+                propsModified: matchResult.propsModified,
+                propsModifications: matchResult.propsModifications,
                 method: matchResult.method
             }
         };
 
-        console.log(`Sent user prompt response with matched component (${matchResult.method}):`, matchResult.component?.name);
+        console.log(`✓ Sent user prompt response with matched component (${matchResult.method}):`, matchResult.component?.name);
         if (matchResult.queryModified) {
-            console.log('Query was modified:', matchResult.queryReasoning);
+            console.log('  ✓ Query was modified:', matchResult.queryReasoning);
+        }
+        if (matchResult.propsModified && matchResult.propsModifications) {
+            console.log('  ✓ Props were modified:', matchResult.propsModifications.join(', '));
         }
         return {success: true, response: response};
 

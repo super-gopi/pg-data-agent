@@ -1,0 +1,669 @@
+{
+  "database": "SNOWFLAKE_SAMPLE_DATA",
+  "schema": "TPCH_SF10",
+  "description": "TPC-H benchmark dataset with scale factor 10",
+  "tables": [
+    {
+      "name": "CUSTOMER",
+      "fullName": "TPCH_SF10.CUSTOMER",
+      "rowCount": 1500000,
+      "description": "Customer dimension table",
+      "columns": [
+        {
+          "name": "C_CUSTKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Primary key for customer",
+          "isPrimaryKey": true,
+          "statistics": {
+            "distinct": 1500000,
+            "min": 1,
+            "max": 1500000
+          }
+        },
+        {
+          "name": "C_NAME",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Customer name",
+          "cardinality": "unique"
+        },
+        {
+          "name": "C_ADDRESS",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Customer address"
+        },
+        {
+          "name": "C_NATIONKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Foreign key to NATION table",
+          "isForeignKey": true,
+          "references": {
+            "table": "NATION",
+            "column": "N_NATIONKEY"
+          },
+          "statistics": {
+            "distinct": 25,
+            "min": 0,
+            "max": 24
+          }
+        },
+        {
+          "name": "C_PHONE",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Customer phone number"
+        },
+        {
+          "name": "C_ACCTBAL",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Customer account balance",
+          "statistics": {
+            "min": -999.99,
+            "max": 9999.99
+          }
+        },
+        {
+          "name": "C_MKTSEGMENT",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Market segment classification",
+          "cardinality": "low",
+          "sampleValues": ["AUTOMOBILE", "BUILDING", "FURNITURE", "HOUSEHOLD", "MACHINERY"]
+        },
+        {
+          "name": "C_COMMENT",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Customer comments"
+        }
+      ]
+    },
+    {
+      "name": "ORDERS",
+      "fullName": "TPCH_SF10.ORDERS",
+      "rowCount": 15000000,
+      "description": "Orders fact table",
+      "columns": [
+        {
+          "name": "O_ORDERKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Primary key for orders",
+          "isPrimaryKey": true,
+          "statistics": {
+            "distinct": 15000000,
+            "min": 1,
+            "max": 60000000
+          }
+        },
+        {
+          "name": "O_CUSTKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Foreign key to CUSTOMER table",
+          "isForeignKey": true,
+          "references": {
+            "table": "CUSTOMER",
+            "column": "C_CUSTKEY"
+          }
+        },
+        {
+          "name": "O_ORDERSTATUS",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Order status code",
+          "cardinality": "low",
+          "sampleValues": ["F", "O", "P"],
+          "valueDescriptions": {
+            "F": "Finished/Completed",
+            "O": "Open/In Progress",
+            "P": "Pending"
+          }
+        },
+        {
+          "name": "O_TOTALPRICE",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Total order price/revenue",
+          "statistics": {
+            "min": 857.71,
+            "max": 555285.16
+          }
+        },
+        {
+          "name": "O_ORDERDATE",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Date when order was placed",
+          "statistics": {
+            "min": "1992-01-01",
+            "max": "1998-08-02"
+          }
+        },
+        {
+          "name": "O_ORDERPRIORITY",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Order priority level",
+          "cardinality": "low",
+          "sampleValues": ["1-URGENT", "2-HIGH", "3-MEDIUM", "4-NOT SPECIFIED", "5-LOW"]
+        },
+        {
+          "name": "O_CLERK",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Clerk who processed the order"
+        },
+        {
+          "name": "O_SHIPPRIORITY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Shipping priority"
+        },
+        {
+          "name": "O_COMMENT",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Order comments"
+        }
+      ]
+    },
+    {
+      "name": "LINEITEM",
+      "fullName": "TPCH_SF10.LINEITEM",
+      "rowCount": 59986052,
+      "description": "Line items in orders (fact table)",
+      "columns": [
+        {
+          "name": "L_ORDERKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Foreign key to ORDERS table",
+          "isForeignKey": true,
+          "references": {
+            "table": "ORDERS",
+            "column": "O_ORDERKEY"
+          }
+        },
+        {
+          "name": "L_PARTKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Foreign key to PART table",
+          "isForeignKey": true,
+          "references": {
+            "table": "PART",
+            "column": "P_PARTKEY"
+          }
+        },
+        {
+          "name": "L_SUPPKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Foreign key to SUPPLIER table",
+          "isForeignKey": true,
+          "references": {
+            "table": "SUPPLIER",
+            "column": "S_SUPPKEY"
+          }
+        },
+        {
+          "name": "L_LINENUMBER",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Line item number within order"
+        },
+        {
+          "name": "L_QUANTITY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Quantity ordered",
+          "statistics": {
+            "min": 1,
+            "max": 50
+          }
+        },
+        {
+          "name": "L_EXTENDEDPRICE",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Extended price (quantity * unit price)"
+        },
+        {
+          "name": "L_DISCOUNT",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Discount percentage",
+          "statistics": {
+            "min": 0,
+            "max": 0.10
+          }
+        },
+        {
+          "name": "L_TAX",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Tax rate",
+          "statistics": {
+            "min": 0,
+            "max": 0.08
+          }
+        },
+        {
+          "name": "L_RETURNFLAG",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Return status flag",
+          "cardinality": "low",
+          "sampleValues": ["A", "N", "R"]
+        },
+        {
+          "name": "L_LINESTATUS",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Line item status",
+          "cardinality": "low",
+          "sampleValues": ["F", "O"],
+          "valueDescriptions": {
+            "F": "Finished",
+            "O": "Open"
+          }
+        },
+        {
+          "name": "L_SHIPDATE",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Ship date"
+        },
+        {
+          "name": "L_COMMITDATE",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Committed delivery date"
+        },
+        {
+          "name": "L_RECEIPTDATE",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Receipt date"
+        },
+        {
+          "name": "L_SHIPINSTRUCT",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Shipping instructions",
+          "sampleValues": ["DELIVER IN PERSON", "COLLECT COD", "NONE", "TAKE BACK RETURN"]
+        },
+        {
+          "name": "L_SHIPMODE",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Shipping mode",
+          "cardinality": "low",
+          "sampleValues": ["AIR", "FOB", "MAIL", "RAIL", "REG AIR", "SHIP", "TRUCK"]
+        },
+        {
+          "name": "L_COMMENT",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Line item comments"
+        }
+      ]
+    },
+    {
+      "name": "PART",
+      "fullName": "TPCH_SF10.PART",
+      "rowCount": 2000000,
+      "description": "Parts/Products dimension table",
+      "columns": [
+        {
+          "name": "P_PARTKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Primary key for parts",
+          "isPrimaryKey": true,
+          "statistics": {
+            "distinct": 2000000,
+            "min": 1,
+            "max": 2000000
+          }
+        },
+        {
+          "name": "P_NAME",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Part name"
+        },
+        {
+          "name": "P_MFGR",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Manufacturer",
+          "cardinality": "low",
+          "sampleValues": ["Manufacturer#1", "Manufacturer#2", "Manufacturer#3", "Manufacturer#4", "Manufacturer#5"]
+        },
+        {
+          "name": "P_BRAND",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Brand name",
+          "cardinality": "medium"
+        },
+        {
+          "name": "P_TYPE",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Part type/category",
+          "cardinality": "medium"
+        },
+        {
+          "name": "P_SIZE",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Part size",
+          "statistics": {
+            "min": 1,
+            "max": 50
+          }
+        },
+        {
+          "name": "P_CONTAINER",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Container type",
+          "cardinality": "medium"
+        },
+        {
+          "name": "P_RETAILPRICE",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Retail price",
+          "statistics": {
+            "min": 901.00,
+            "max": 2098.99
+          }
+        },
+        {
+          "name": "P_COMMENT",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Part comments"
+        }
+      ]
+    },
+    {
+      "name": "SUPPLIER",
+      "fullName": "TPCH_SF10.SUPPLIER",
+      "rowCount": 100000,
+      "description": "Supplier dimension table",
+      "columns": [
+        {
+          "name": "S_SUPPKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Primary key for supplier",
+          "isPrimaryKey": true,
+          "statistics": {
+            "distinct": 100000,
+            "min": 1,
+            "max": 100000
+          }
+        },
+        {
+          "name": "S_NAME",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Supplier name"
+        },
+        {
+          "name": "S_ADDRESS",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Supplier address"
+        },
+        {
+          "name": "S_NATIONKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Foreign key to NATION table",
+          "isForeignKey": true,
+          "references": {
+            "table": "NATION",
+            "column": "N_NATIONKEY"
+          }
+        },
+        {
+          "name": "S_PHONE",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Supplier phone number"
+        },
+        {
+          "name": "S_ACCTBAL",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Supplier account balance"
+        },
+        {
+          "name": "S_COMMENT",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Supplier comments"
+        }
+      ]
+    },
+    {
+      "name": "PARTSUPP",
+      "fullName": "TPCH_SF10.PARTSUPP",
+      "rowCount": 8000000,
+      "description": "Part-Supplier relationship table",
+      "columns": [
+        {
+          "name": "PS_PARTKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Foreign key to PART table",
+          "isForeignKey": true,
+          "references": {
+            "table": "PART",
+            "column": "P_PARTKEY"
+          }
+        },
+        {
+          "name": "PS_SUPPKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Foreign key to SUPPLIER table",
+          "isForeignKey": true,
+          "references": {
+            "table": "SUPPLIER",
+            "column": "S_SUPPKEY"
+          }
+        },
+        {
+          "name": "PS_AVAILQTY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Available quantity"
+        },
+        {
+          "name": "PS_SUPPLYCOST",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Supply cost"
+        },
+        {
+          "name": "PS_COMMENT",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Part supplier comments"
+        }
+      ]
+    },
+    {
+      "name": "NATION",
+      "fullName": "TPCH_SF10.NATION",
+      "rowCount": 25,
+      "description": "Nation/Country dimension table",
+      "columns": [
+        {
+          "name": "N_NATIONKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Primary key for nation",
+          "isPrimaryKey": true,
+          "statistics": {
+            "distinct": 25,
+            "min": 0,
+            "max": 24
+          }
+        },
+        {
+          "name": "N_NAME",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Nation name",
+          "cardinality": "low"
+        },
+        {
+          "name": "N_REGIONKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Foreign key to REGION table",
+          "isForeignKey": true,
+          "references": {
+            "table": "REGION",
+            "column": "R_REGIONKEY"
+          },
+          "statistics": {
+            "distinct": 5,
+            "min": 0,
+            "max": 4
+          }
+        },
+        {
+          "name": "N_COMMENT",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Nation comments"
+        }
+      ]
+    },
+    {
+      "name": "REGION",
+      "fullName": "TPCH_SF10.REGION",
+      "rowCount": 5,
+      "description": "Region dimension table",
+      "columns": [
+        {
+          "name": "R_REGIONKEY",
+          "type": "NUMBER",
+          "nullable": false,
+          "description": "Primary key for region",
+          "isPrimaryKey": true,
+          "statistics": {
+            "distinct": 5,
+            "min": 0,
+            "max": 4
+          }
+        },
+        {
+          "name": "R_NAME",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Region name",
+          "cardinality": "low",
+          "sampleValues": ["AFRICA", "AMERICA", "ASIA", "EUROPE", "MIDDLE EAST"]
+        },
+        {
+          "name": "R_COMMENT",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Region comments"
+        }
+      ]
+    }
+  ],
+  "commonQueries": [
+    {
+      "description": "Total revenue",
+      "query": "SELECT SUM(O_TOTALPRICE) as total_revenue FROM TPCH_SF10.ORDERS"
+    },
+    {
+      "description": "Revenue by month",
+      "query": "SELECT DATE_TRUNC('month', O_ORDERDATE) as month, SUM(O_TOTALPRICE) as revenue FROM TPCH_SF10.ORDERS GROUP BY month ORDER BY month"
+    },
+    {
+      "description": "Orders by status",
+      "query": "SELECT O_ORDERSTATUS, COUNT(*) as count FROM TPCH_SF10.ORDERS GROUP BY O_ORDERSTATUS"
+    },
+    {
+      "description": "Top customers by spending",
+      "query": "SELECT c.C_NAME, SUM(o.O_TOTALPRICE) as total_spent FROM TPCH_SF10.CUSTOMER c JOIN TPCH_SF10.ORDERS o ON c.C_CUSTKEY = o.O_CUSTKEY GROUP BY c.C_NAME ORDER BY total_spent DESC LIMIT 10"
+    },
+    {
+      "description": "Customers by market segment",
+      "query": "SELECT C_MKTSEGMENT, COUNT(*) as count FROM TPCH_SF10.CUSTOMER GROUP BY C_MKTSEGMENT"
+    }
+  ],
+  "relationships": [
+    {
+      "from": "ORDERS",
+      "to": "CUSTOMER",
+      "type": "many-to-one",
+      "keys": ["O_CUSTKEY", "C_CUSTKEY"]
+    },
+    {
+      "from": "LINEITEM",
+      "to": "ORDERS",
+      "type": "many-to-one",
+      "keys": ["L_ORDERKEY", "O_ORDERKEY"]
+    },
+    {
+      "from": "LINEITEM",
+      "to": "PART",
+      "type": "many-to-one",
+      "keys": ["L_PARTKEY", "P_PARTKEY"]
+    },
+    {
+      "from": "LINEITEM",
+      "to": "SUPPLIER",
+      "type": "many-to-one",
+      "keys": ["L_SUPPKEY", "S_SUPPKEY"]
+    },
+    {
+      "from": "CUSTOMER",
+      "to": "NATION",
+      "type": "many-to-one",
+      "keys": ["C_NATIONKEY", "N_NATIONKEY"]
+    },
+    {
+      "from": "SUPPLIER",
+      "to": "NATION",
+      "type": "many-to-one",
+      "keys": ["S_NATIONKEY", "N_NATIONKEY"]
+    },
+    {
+      "from": "NATION",
+      "to": "REGION",
+      "type": "many-to-one",
+      "keys": ["N_REGIONKEY", "R_REGIONKEY"]
+    },
+    {
+      "from": "PARTSUPP",
+      "to": "PART",
+      "type": "many-to-one",
+      "keys": ["PS_PARTKEY", "P_PARTKEY"]
+    },
+    {
+      "from": "PARTSUPP",
+      "to": "SUPPLIER",
+      "type": "many-to-one",
+      "keys": ["PS_SUPPKEY", "S_SUPPKEY"]
+    }
+  ]
+}
