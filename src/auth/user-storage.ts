@@ -11,7 +11,7 @@ export interface UsersData {
   users: User[];
 }
 
-const USERS_FILE_PATH = path.join(__dirname, 'users.json');
+const USERS_FILE_PATH = path.join(process.cwd(), 'src/auth/users.json');
 
 /**
  * Load users from users.json file
