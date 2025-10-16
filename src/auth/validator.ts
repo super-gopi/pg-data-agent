@@ -80,3 +80,24 @@ export function authenticateAndStoreUserId(credentials: LoginCredentials, userId
 
   return validationResult;
 }
+
+/**
+ * Verify authentication token
+ * @param authToken - Base64 encoded auth token containing username and password
+ * @returns ValidationResult indicating if token is valid
+ */
+export function verifyAuthToken(authToken: string): ValidationResult {
+  try {
+    // Decode base64 token
+    const decodedString = Buffer.from(authToken, 'base64').toString('utf-8');
+    const credentials = JSON.parse(decodedString);
+
+    // Validate credentials
+    return validateUser(credentials);
+  } catch (error) {
+    return {
+      success: false,
+      message: 'Invalid token format'
+    };
+  }
+}

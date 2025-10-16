@@ -10,7 +10,7 @@ import { get_user_response } from '../userResponse';
 import SNOWFLAKE from '../snowflake';
 import { validateMessageSize } from '../userResponse/utils';
 import { decodeBase64ToJson } from '../auth/utils';
-import { authenticateAndStoreUserId } from '../auth/validator';
+import { authenticateAndStoreUserId, verifyAuthToken } from '../auth/validator';
 
 dotenv.config();
 
@@ -106,6 +106,9 @@ export class WebSocketClient {
 		}
 		else if (data.type === 'auth_login_req') {
 			this.handleAuthLoginReq(data);
+		}
+		else if (data.type === 'auth_verify_req') {
+			this.handleAuthVerifyReq(data);
 		}
 		else {
 			console.warn('Unknown message type:', data);
@@ -410,6 +413,68 @@ export class WebSocketClient {
 				},
 				payload: {
 					success: false,
+					message: error instanceof Error ? error.message : 'Unknown error occurred'
+				}
+			});
+		}
+	}
+
+	handleAuthVerifyReq(data: WebSocketMessage) {
+		const id = data.id || 'unknown';
+
+		try {
+			// Extract auth_token from payload
+			const authToken = data.payload?.auth_token;
+
+			let response: any = {
+				id: id,
+				type: 'auth_verify_res',
+				from: {
+					type: 'data-agent',
+				},
+				to: {
+					type: 'runtime',
+					id: data.from?.id,
+				},
+				payload: null
+			};
+
+			// Validate auth_token exists
+			if (!authToken) {
+				response.payload = {
+					valid: false,
+					message: 'Auth token is required'
+				};
+				this.send(JSON.stringify(response));
+				return;
+			}
+
+			// Verify the auth token
+			const verificationResult = verifyAuthToken(authToken);
+
+			// Send response with valid field
+			response.payload = {
+				valid: verificationResult.success,
+				message: verificationResult.message,
+				username: verificationResult.username
+			};
+
+			this.send(JSON.stringify(response));
+
+		} catch (error) {
+			console.error('Error processing auth verify request:', error);
+			this.send({
+				id: id,
+				type: 'auth_verify_res',
+				from: {
+					type: 'data-agent',
+				},
+				to: {
+					type: 'runtime',
+					id: data.from?.id,
+				},
+				payload: {
+					valid: false,
 					message: error instanceof Error ? error.message : 'Unknown error occurred'
 				}
 			});

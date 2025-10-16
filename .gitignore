@@ -2,3 +2,6 @@ node_modules
 dist
 .env
 local_cache
+
+# Auth credentials
+src/auth/users.json
