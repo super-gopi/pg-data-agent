@@ -76,7 +76,7 @@ const test = async () => {
 }
 
 
-const execute_query = async (sql: string): Promise<any[]> => {
+const execute_query = async (sql: string, maxRows: number = 50): Promise<any[]> => {
   // Ensure we're connected before executing
   await ensureConnection();
 
@@ -90,7 +90,7 @@ const execute_query = async (sql: string): Promise<any[]> => {
         }
 
         // Convert rows to simplified JSON
-        const simplifiedData = rows?.map(row => {
+        let simplifiedData = rows?.map(row => {
           const simplified: any = {};
           for (const [key, value] of Object.entries(row) as any) {
             // Handle Snowflake date objects
@@ -102,6 +102,12 @@ const execute_query = async (sql: string): Promise<any[]> => {
           }
           return simplified;
         }) || [];
+
+        // Apply hard limit to prevent memory issues
+        if (simplifiedData.length > maxRows) {
+          console.warn(`Query returned ${simplifiedData.length} rows, truncating to ${maxRows}`);
+          simplifiedData = simplifiedData.slice(0, maxRows);
+        }
 
         resolve(simplifiedData);
       }

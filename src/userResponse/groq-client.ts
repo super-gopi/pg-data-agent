@@ -3,13 +3,15 @@ import dotenv from 'dotenv';
 import CHROMACOLLECTION from '../chromadb/collections';
 
 import { Component } from './types';
-import { generateSchemaDocumentation } from './utils';
+import { generateSchemaDocumentation, ensureQueryLimit } from './utils';
 
 dotenv.config();
 
 const groq = new Groq({
 	apiKey: process.env.GROQ_API_KEY
 });
+
+const DEFAULT_LIMIT = 50;
 
 
 
@@ -53,6 +55,7 @@ Your task is to intelligently modify the props based on the user's request:
    - Modify SQL query if user requests different data, filters, time ranges, limits, or aggregations
    - Use correct table and column names from the schema
    - Ensure valid SQL syntax (Snowflake SQL dialect)
+   - ALWAYS include a LIMIT clause (default: ${DEFAULT_LIMIT} rows) to prevent large result sets
    - Preserve the query structure that the component expects (e.g., column aliases)
 
 2. **Title Modification**:
@@ -130,8 +133,14 @@ Analyze the user's request and modify the props accordingly. Return the complete
 		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
 		const result = JSON.parse(responseText);
 
+		// Ensure all queries have a LIMIT clause
+		const props = result.props || originalProps;
+		if (props && props.query) {
+			props.query = ensureQueryLimit(props.query, DEFAULT_LIMIT);
+		}
+
 		return {
-			props: result.props || originalProps,
+			props: props,
 			isModified: result.isModified || false,
 			reasoning: result.reasoning || 'No modifications needed',
 			modifications: result.modifications || []
@@ -277,6 +286,7 @@ Given a user's analytical question, your task is to:
    - For Charts: Return appropriate columns (name/label and value, or x and y)
    - For Table: Return all relevant columns
    - Add appropriate filters, aggregations, sorting, and limits
+   - ALWAYS include a LIMIT clause (default: ${DEFAULT_LIMIT} rows) to prevent large result sets
 
 3. **Create descriptive metadata:**
    - title: Clear, concise title describing what's shown
@@ -342,6 +352,9 @@ Analyze this question and generate the appropriate visualization with SQL query.
 			};
 		}
 
+		// Ensure the generated query has a LIMIT clause
+		const query = ensureQueryLimit(result.query, DEFAULT_LIMIT);
+
 		// Create a dynamic component object
 		const dynamicComponent: Component = {
 			id: `dynamic_${Date.now()}`,
@@ -351,7 +364,7 @@ Analyze this question and generate the appropriate visualization with SQL query.
 			category: 'dynamic',
 			keywords: [],
 			props: {
-				query: result.query,
+				query: query,
 				title: result.title,
 				description: result.description,
 				config: result.config || {}

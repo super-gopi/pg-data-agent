@@ -1,6 +1,9 @@
 import { db } from './db';
 import { asc, desc, and, eq, gt, gte, lt, lte, like, ilike, sql } from 'drizzle-orm';
+import { ensureQueryLimit } from '../userResponse/utils';
 
+
+const DEFAULT_LIMIT = 50; // Default limit for raw SQL queries
 export interface QueryParams {
 	limit?: number;
 	offset?: number;
@@ -97,8 +100,11 @@ export async function executeRawSQL(rawSQL: string): Promise<QueryResult> {
 			};
 		}
 
+		// Ensure query has a LIMIT clause to prevent large result sets
+		const limitedQuery = ensureQueryLimit(rawSQL, DEFAULT_LIMIT);
+
 		// Execute raw SQL query
-		const data = await db.execute(sql.raw(rawSQL));
+		const data = await db.execute(sql.raw(limitedQuery));
 
 		return {
 			success: true,

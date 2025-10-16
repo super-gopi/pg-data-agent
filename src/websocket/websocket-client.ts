@@ -8,6 +8,9 @@ import { Component } from '../userResponse/types';
 import { matchComponentFromChromaDB } from '../userResponse/chorma-vector-search';
 import { get_user_response } from '../userResponse';
 import SNOWFLAKE from '../snowflake';
+import { validateMessageSize } from '../userResponse/utils';
+import { decodeBase64ToJson } from '../auth/utils';
+import { authenticateAndStoreUserId } from '../auth/validator';
 
 dotenv.config();
 
@@ -101,6 +104,9 @@ export class WebSocketClient {
 		else if (data.type === 'component_list') {
 			this.handleComponentListRes(data);
 		}
+		else if (data.type === 'auth_login_req') {
+			this.handleAuthLoginReq(data);
+		}
 		else {
 			console.warn('Unknown message type:', data);
 		}
@@ -114,6 +120,27 @@ export class WebSocketClient {
 
 		try {
 			const message = typeof data === 'string' ? data : JSON.stringify(data);
+
+			// Validate message size (1MB limit)
+			const validation = validateMessageSize(message, 1048576);
+			if (!validation.isValid) {
+				console.error(`Message too large: ${validation.size} bytes > ${validation.maxSize} bytes (${(validation.size / 1048576).toFixed(2)}MB)`);
+
+				// Send error response instead
+				const errorData = typeof data === 'string' ? JSON.parse(data) : data;
+				const errorResponse = {
+					id: errorData.id,
+					type: errorData.type,
+					from: errorData.from,
+					to: errorData.to,
+					payload: {
+						error: `Response too large (${(validation.size / 1048576).toFixed(2)}MB). Please add LIMIT to your query or request less data.`
+					}
+				};
+				this.ws.send(JSON.stringify(errorResponse));
+				return false;
+			}
+
 			this.ws.send(message);
 			return true;
 		} catch (error) {
@@ -287,6 +314,108 @@ export class WebSocketClient {
 
 	}
 
+	handleAuthLoginReq(data: WebSocketMessage) {
+		const id = data.id || 'unknown';
+
+		try {
+			// Extract base64 encoded login data from payload
+			const loginDataBase64 = data.payload?.login_data;
+
+			let response: any = {
+				id: id,
+				type: 'auth_login_res',
+				from: {
+					type: 'data-agent',
+				},
+				to: {
+					type: 'runtime',
+					id: data.from?.id,
+				},
+				payload: null
+			};
+
+			// Validate login_data exists
+			if (!loginDataBase64) {
+				response.payload = {
+					success: false,
+					message: 'Login data is required'
+				};
+				this.send(JSON.stringify(response));
+				return;
+			}
+
+			// Decode base64 data and parse JSON
+			let loginData: any;
+			try {
+				loginData = decodeBase64ToJson(loginDataBase64);
+			} catch (error) {
+				response.payload = {
+					success: false,
+					message: 'Invalid login data format'
+				};
+				this.send(JSON.stringify(response));
+				return;
+			}
+
+			// Extract username and password from decoded data
+			const { username, password } = loginData;
+
+			if (!username || !password) {
+				response.payload = {
+					success: false,
+					message: 'Username and password are required'
+				};
+				this.send(JSON.stringify(response));
+				return;
+			}
+
+			// Get userId from the message sender
+			const userId = data.from?.id;
+
+			if (!userId) {
+				response.payload = {
+					success: false,
+					message: 'User ID not found in request'
+				};
+				this.send(JSON.stringify(response));
+				return;
+			}
+
+			// Authenticate user and store userId
+			const authResult = authenticateAndStoreUserId(
+				{ username, password },
+				userId
+			);
+
+			// Send response
+			response.payload = {
+				success: authResult.success,
+				message: authResult.message,
+				username: authResult.username
+			};
+
+			this.send(JSON.stringify(response));
+
+		} catch (error) {
+			console.error('Error processing auth login request:', error);
+			this.send({
+				id: id,
+				type: 'auth_login_res',
+				from: {
+					type: 'data-agent',
+				},
+				to: {
+					type: 'runtime',
+					id: data.from?.id,
+				},
+				payload: {
+					success: false,
+					message: error instanceof Error ? error.message : 'Unknown error occurred'
+				}
+			});
+		}
+	}
+
 	private handleReconnect(): void {
 		if (!this.shouldReconnect) {
 			console.log('Reconnection disabled, not attempting to reconnect');
@@ -326,7 +455,7 @@ export class WebSocketClient {
 				const exists = await CHROMACOLLECTION.collectionExists(collectionName);
 
 				if (exists && !forceRecreate) {
-					const count = await CHROMACOLLECTION.getCollectionCount(collectionName);
+					await CHROMACOLLECTION.getCollectionCount(collectionName);
 				} else {
 					if (exists && forceRecreate) {
 						await CHROMACOLLECTION.deleteCollection(collectionName);

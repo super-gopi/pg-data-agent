@@ -100,3 +100,75 @@ export function generateSchemaDocumentationConcise(): string {
 
   return tables.join('\n');
 }
+
+/**
+ * Ensures a SQL query has a LIMIT clause to prevent large result sets
+ * Only applies to SELECT queries - leaves INSERT, UPDATE, DELETE, etc. unchanged
+ * @param query - The SQL query to check
+ * @param defaultLimit - Default limit to apply if none exists (default: 50)
+ * @returns The query with a LIMIT clause (if it's a SELECT query)
+ */
+export function ensureQueryLimit(query: string, defaultLimit: number = 50): string {
+  if (!query || query.trim().length === 0) {
+    return query;
+  }
+
+  const trimmedQuery = query.trim();
+
+  // Only apply LIMIT to SELECT queries
+  // Check if the query is a SELECT statement (not INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, etc.)
+  const isSelectQuery = /^\s*SELECT\b/i.test(trimmedQuery) ||
+                        /^\s*WITH\b.*\bSELECT\b/is.test(trimmedQuery); // Also handle CTEs (WITH clause)
+
+  if (!isSelectQuery) {
+    // Not a SELECT query, return as-is
+    return query;
+  }
+
+  // Check if query already has a LIMIT clause
+  const hasLimit = /\bLIMIT\s+\d+/i.test(trimmedQuery);
+
+  if (hasLimit) {
+    return query;
+  }
+
+  // Add LIMIT clause at the end (before any trailing semicolon)
+  let modifiedQuery = trimmedQuery;
+  if (modifiedQuery.endsWith(';')) {
+    modifiedQuery = modifiedQuery.slice(0, -1).trim();
+  }
+
+  modifiedQuery = `${modifiedQuery} LIMIT ${defaultLimit}`;
+
+  // Add back the semicolon if it was there
+  if (trimmedQuery.endsWith(';')) {
+    modifiedQuery += ';';
+  }
+
+  return modifiedQuery;
+}
+
+/**
+ * Calculates the size of a JSON object in bytes
+ * @param obj - The object to measure
+ * @returns Size in bytes
+ */
+export function getJsonSizeInBytes(obj: any): number {
+  const jsonString = JSON.stringify(obj);
+  return Buffer.byteLength(jsonString, 'utf8');
+}
+
+/**
+ * Checks if a message exceeds the WebSocket size limit
+ * @param message - The message object to check
+ * @param maxSize - Maximum size in bytes (default: 1MB)
+ * @returns Object with isValid flag and size information
+ */
+export function validateMessageSize(message: any, maxSize: number = 1048576): { isValid: boolean; size: number; maxSize: number } {
+  const size = getJsonSizeInBytes(message);
+  return {
+    isValid: size <= maxSize,
+    size,
+    maxSize
+  };
+}

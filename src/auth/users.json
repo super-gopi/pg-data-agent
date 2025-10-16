@@ -1,0 +1,28 @@
+{
+    "users": [
+        {
+            "username": "gopi",
+            "password": "gopi",
+            "userids": [
+                "8089498a-b14d-4c7d-9600-757bf7bcd47d",
+                "69eaf899-c4e8-4f12-8656-b3666d04fdf2",
+                "4b334715-bccc-4cb0-8237-7658911b7b52",
+                "004e9ebb-5431-43ad-9d95-eaf842ecfd6d",
+                "a44652d3-6b71-4893-b4b5-b393997de273",
+                "36d030dc-bf7b-4c42-8bc9-3c56365bb253",
+                "63082777-9438-4c80-b2c1-bee58af585bc",
+                "6c62f2a3-0590-4d3b-bbdf-ce13b1880611",
+                "494c20d2-e35b-4831-9c99-3ce2c6e81f2e",
+                "0856d7b8-c577-43d1-a94d-d475e8f9b0c9",
+                "63230a21-abe0-4cfb-9061-75bf31902ec5",
+                "9469a37d-a804-465f-8c87-7031402148ef",
+                "051bc06a-c1c9-4351-ae83-d5f0752536f1"
+            ]
+        },
+        {
+            "username": "rohit",
+            "password": "rohit",
+            "userids": []
+        }
+    ]
+}
