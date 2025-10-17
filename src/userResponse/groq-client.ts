@@ -1,3 +1,4 @@
+import { LLM } from '@superatomai/sdk';
 import Groq from 'groq-sdk';
 import dotenv from 'dotenv';
 import CHROMACOLLECTION from '../chromadb/collections';
@@ -113,25 +114,41 @@ Component type: ${componentType}
 
 Analyze the user's request and modify the props accordingly. Return the complete modified props object.`;
 
-		const chatCompletion = await groq.chat.completions.create({
-			messages: [
-				{
-					role: 'system',
-					content: systemPrompt
-				},
-				{
-					role: 'user',
-					content: userMessage
-				}
-			],
-			model: 'llama-3.3-70b-versatile',
-			temperature: 0.2,
-			max_tokens: 2500,
-			response_format: { type: 'json_object' }
-		});
+		// OLD: Direct Groq SDK call
+		// const chatCompletion = await groq.chat.completions.create({
+		// 	messages: [
+		// 		{
+		// 			role: 'system',
+		// 			content: systemPrompt
+		// 		},
+		// 		{
+		// 			role: 'user',
+		// 			content: userMessage
+		// 		}
+		// 	],
+		// 	model: 'llama-3.3-70b-versatile',
+		// 	temperature: 0.2,
+		// 	max_tokens: 2500,
+		// 	response_format: { type: 'json_object' }
+		// });
+		// const responseText = chatCompletion.choices[0]?.message?.content || '{}';
+		// const result = JSON.parse(responseText);
 
-		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
-		const result = JSON.parse(responseText);
+		// NEW: Using SDK LLM
+		console.log('[validateAndModifyProps] 🔄 Calling SDK LLM.stream (Groq)...');
+		const result = await LLM.stream(
+			{
+				sys: systemPrompt,
+				user: userMessage
+			},
+			{
+				model: 'groq/llama-3.3-70b-versatile',
+				temperature: 0.2,
+				maxTokens: 2500
+			},
+			true // JSON mode
+		);
+		console.log('[validateAndModifyProps] ✓ SDK response received, isModified:', result.isModified);
 
 		// Ensure all queries have a LIMIT clause
 		const props = result.props || originalProps;
@@ -206,25 +223,41 @@ export async function validateAndModifyQuery(
 
     Does this query match the user's request? If not, modify it accordingly.`;
 
-		const chatCompletion = await groq.chat.completions.create({
-			messages: [
-				{
-					role: 'system',
-					content: systemPrompt
-				},
-				{
-					role: 'user',
-					content: userMessage
-				}
-			],
-			model: 'llama-3.3-70b-versatile',
-			temperature: 0.2,
-			max_tokens: 1500,
-			response_format: { type: 'json_object' }
-		});
+		// OLD: Direct Groq SDK call
+		// const chatCompletion = await groq.chat.completions.create({
+		// 	messages: [
+		// 		{
+		// 			role: 'system',
+		// 			content: systemPrompt
+		// 		},
+		// 		{
+		// 			role: 'user',
+		// 			content: userMessage
+		// 		}
+		// 	],
+		// 	model: 'llama-3.3-70b-versatile',
+		// 	temperature: 0.2,
+		// 	max_tokens: 1500,
+		// 	response_format: { type: 'json_object' }
+		// });
+		// const responseText = chatCompletion.choices[0]?.message?.content || '{}';
+		// const result = JSON.parse(responseText);
 
-		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
-		const result = JSON.parse(responseText);
+		// NEW: Using SDK LLM
+		console.log('[validateAndModifyQuery] 🔄 Calling SDK LLM.stream (Groq)...');
+		const result = await LLM.stream(
+			{
+				sys: systemPrompt,
+				user: userMessage
+			},
+			{
+				model: 'groq/llama-3.3-70b-versatile',
+				temperature: 0.2,
+				maxTokens: 1500
+			},
+			true // JSON mode
+		);
+		console.log('[validateAndModifyQuery] ✓ SDK response received, isModified:', result.isModified);
 
 		return {
 			query: result.query || originalQuery,
@@ -324,25 +357,41 @@ Respond with a JSON object:
 
 Analyze this question and generate the appropriate visualization with SQL query.`;
 
-		const chatCompletion = await groq.chat.completions.create({
-			messages: [
-				{
-					role: 'system',
-					content: systemPrompt
-				},
-				{
-					role: 'user',
-					content: userMessage
-				}
-			],
-			model: 'llama-3.3-70b-versatile',
-			temperature: 0.2,
-			max_tokens: 2000,
-			response_format: { type: 'json_object' }
-		});
+		// OLD: Direct Groq SDK call
+		// const chatCompletion = await groq.chat.completions.create({
+		// 	messages: [
+		// 		{
+		// 			role: 'system',
+		// 			content: systemPrompt
+		// 		},
+		// 		{
+		// 			role: 'user',
+		// 			content: userMessage
+		// 		}
+		// 	],
+		// 	model: 'llama-3.3-70b-versatile',
+		// 	temperature: 0.2,
+		// 	max_tokens: 2000,
+		// 	response_format: { type: 'json_object' }
+		// });
+		// const responseText = chatCompletion.choices[0]?.message?.content || '{}';
+		// const result = JSON.parse(responseText);
 
-		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
-		const result = JSON.parse(responseText);
+		// NEW: Using SDK LLM
+		console.log('[generateAnalyticalComponent] 🔄 Calling SDK LLM.stream (Groq)...');
+		const result = await LLM.stream(
+			{
+				sys: systemPrompt,
+				user: userMessage
+			},
+			{
+				model: 'groq/llama-3.3-70b-versatile',
+				temperature: 0.2,
+				maxTokens: 2000
+			},
+			true // JSON mode
+		);
+		console.log('[generateAnalyticalComponent] ✓ SDK response received, canGenerate:', result.canGenerate);
 
 		if (!result.canGenerate) {
 			return {
@@ -477,25 +526,41 @@ Example response:
 - Prefer components that exactly match the user's metric over generic ones
 - Consider the full context of the request, not just individual words`;
 
-		const chatCompletion = await groq.chat.completions.create({
-			messages: [
-				{
-					role: 'system',
-					content: systemPrompt
-				},
-				{
-					role: 'user',
-					content: `User request: "${userPrompt}"\n\nFind the best matching component and explain your reasoning with a confidence score.`
-				}
-			],
-			model: 'llama-3.3-70b-versatile',
-			temperature: 0.2,
-			max_tokens: 800,
-			response_format: { type: 'json_object' }
-		});
+		// OLD: Direct Groq SDK call
+		// const chatCompletion = await groq.chat.completions.create({
+		// 	messages: [
+		// 		{
+		// 			role: 'system',
+		// 			content: systemPrompt
+		// 		},
+		// 		{
+		// 			role: 'user',
+		// 			content: `User request: "${userPrompt}"\n\nFind the best matching component and explain your reasoning with a confidence score.`
+		// 		}
+		// 	],
+		// 	model: 'llama-3.3-70b-versatile',
+		// 	temperature: 0.2,
+		// 	max_tokens: 800,
+		// 	response_format: { type: 'json_object' }
+		// });
+		// const responseText = chatCompletion.choices[0]?.message?.content || '{}';
+		// const result = JSON.parse(responseText);
 
-		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
-		const result = JSON.parse(responseText);
+		// NEW: Using SDK LLM
+		console.log('[matchComponentFromGroq] 🔄 Calling SDK LLM.stream (Groq)...');
+		const result = await LLM.stream(
+			{
+				sys: systemPrompt,
+				user: `User request: "${userPrompt}"\n\nFind the best matching component and explain your reasoning with a confidence score.`
+			},
+			{
+				model: 'groq/llama-3.3-70b-versatile',
+				temperature: 0.2,
+				maxTokens: 800
+			},
+			true // JSON mode
+		);
+		console.log('[matchComponentFromGroq] ✓ SDK response received, confidence:', result.confidence);
 
 		const componentIndex = result.componentIndex;
 		const componentId = result.componentId;
