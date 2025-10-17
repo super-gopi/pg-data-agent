@@ -13,7 +13,143 @@ const groq = new Groq({
 
 const DEFAULT_LIMIT = 50;
 
+const GROQ_MODEL = 'openai/gpt-oss-120b';
+/**
+ * Classify user question to determine the type and required visualizations
+ */
+export async function classifyUserQuestion(
+	userPrompt: string
+): Promise<{
+	questionType: 'analytical' | 'data_modification' | 'general';
+	visualizations: string[];
+	reasoning: string;
+	needsMultipleComponents: boolean;
+}> {
+	const schemaDoc = generateSchemaDocumentation();
 
+	try {
+		const systemPrompt = `You are an expert AI that classifies user questions about data and determines the appropriate visualizations needed.
+
+Database Schema:
+${schemaDoc || 'No schema available'}
+
+IMPORTANT: You must respond in valid JSON format.
+
+Your task is to analyze the user's question and determine:
+
+1. **Question Type:**
+   - "analytical": Questions asking to VIEW, ANALYZE, or VISUALIZE data
+     Examples: "Show me revenue", "What is the trend?", "Display top customers", "Revenue by region"
+
+   - "data_modification": Questions asking to CREATE, UPDATE, DELETE, or MODIFY data
+     Examples: "Add a new customer", "Update order status", "Delete old records", "Change price"
+
+   - "general": General questions, greetings, or requests not related to data
+     Examples: "Hello", "What can you do?", "Help me understand"
+
+2. **Required Visualizations** (only for analytical questions):
+   Determine which visualization type(s) would BEST answer the user's question:
+
+   - **KPICard**: Single metric, total, count, average, percentage, or summary number
+     Use when: User asks for "total", "how many", "average", "what is the [metric]"
+     Examples: "What is total revenue?", "How many orders?", "Average price?"
+
+   - **LineChart**: Trends over time, time series, growth/decline patterns
+     Use when: User mentions "trend", "over time", "monthly", "growth", or asks about changes
+     Examples: "Revenue trend", "Orders over time", "Monthly sales", "Growth pattern"
+
+   - **BarChart**: Comparing categories, rankings, distributions across groups
+     Use when: User asks "by [category]", "top N", "compare", "distribution"
+     Examples: "Revenue by region", "Top 10 products", "Sales by category", "Compare suppliers"
+
+   - **PieChart**: Proportions, percentages, composition, market share
+     Use when: User asks about "percentage", "share", "proportion", "breakdown"
+     Examples: "Revenue share", "Market composition", "Percentage by category"
+
+   - **DataTable**: Detailed lists, multiple attributes, when user needs to see records
+     Use when: User asks to "list", "show all", "display details", wants multiple columns
+     Examples: "List all customers", "Show recent orders", "Display product details"
+
+3. **Multiple Visualizations:**
+   User may need MULTIPLE visualizations together:
+
+   Common combinations:
+   - KPICard + LineChart: "Show total revenue and trend" → [number + trend over time]
+   - KPICard + BarChart: "Total sales and breakdown by region" → [total + distribution]
+   - KPICard + DataTable: "Number of orders and list them" → [count + detailed list]
+   - BarChart + PieChart: "Compare categories and show market share" → [comparison + proportion]
+   - LineChart + DataTable: "Trend over time with details" → [trend + supporting data]
+
+   Set needsMultipleComponents to true if user needs multiple views of the data.
+
+**Important Guidelines:**
+- If user explicitly mentions a chart type (e.g., "show as line chart", "use bar chart"), RESPECT that preference
+- If question is vague or needs both summary and detail, suggest KPICard + DataTable
+- Only return visualizations for "analytical" questions
+- For "data_modification" or "general", return empty array for visualizations
+
+**Output Format:**
+{
+  "questionType": "analytical" | "data_modification" | "general",
+  "visualizations": ["KPICard", "LineChart", ...],  // Empty array if not analytical
+  "reasoning": "Explanation of classification and visualization choices",
+  "needsMultipleComponents": boolean
+}
+
+Examples:
+
+User: "Show me total revenue"
+Output: {"questionType": "analytical", "visualizations": ["KPICard"], "reasoning": "User asks for a single total value", "needsMultipleComponents": false}
+
+User: "What is the revenue trend over last 6 months?"
+Output: {"questionType": "analytical", "visualizations": ["LineChart"], "reasoning": "User asks for trend over time", "needsMultipleComponents": false}
+
+User: "Show total orders and list them"
+Output: {"questionType": "analytical", "visualizations": ["KPICard", "DataTable"], "reasoning": "User needs both count and detailed list", "needsMultipleComponents": true}
+
+User: "Show revenue by region as a bar chart"
+Output: {"questionType": "analytical", "visualizations": ["BarChart"], "reasoning": "User explicitly requests bar chart for categorical comparison", "needsMultipleComponents": false}
+
+User: "Update customer email to john@example.com"
+Output: {"questionType": "data_modification", "visualizations": [], "reasoning": "User wants to modify data", "needsMultipleComponents": false}`;
+
+		const chatCompletion = await groq.chat.completions.create({
+			messages: [
+				{
+					role: 'system',
+					content: systemPrompt
+				},
+				{
+					role: 'user',
+					content: `User question: "${userPrompt}"\n\nClassify this question and determine required visualizations.`
+				}
+			],
+			model: GROQ_MODEL,
+			temperature: 0.2,
+			max_tokens: 800,
+			response_format: { type: 'json_object' }
+		});
+
+		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
+		const result = JSON.parse(responseText);
+
+		return {
+			questionType: result.questionType || 'general',
+			visualizations: result.visualizations || [],
+			reasoning: result.reasoning || 'No reasoning provided',
+			needsMultipleComponents: result.needsMultipleComponents || false
+		};
+	} catch (error) {
+		console.error('Error classifying user question:', error);
+		// Default to analytical with no specific visualization preference
+		return {
+			questionType: 'analytical',
+			visualizations: [],
+			reasoning: 'Error occurred during classification',
+			needsMultipleComponents: false
+		};
+	}
+}
 
 /**
  * Enhanced function that validates and modifies the entire props object based on user request
@@ -30,6 +166,8 @@ export async function validateAndModifyProps(
 	const schemaDoc = generateSchemaDocumentation();
 	try {
 		const systemPrompt = `You are an AI assistant that validates and modifies component props based on user requests.
+
+IMPORTANT: Respond in JSON format.
 
 Given:
 - A user's natural language request
@@ -74,7 +212,7 @@ Your task is to intelligently modify the props based on the user's request:
    - Only modify if user explicitly requests changes
 
 Examples of user requests and modifications:
-
+/
 User: "Show me revenue for last quarter"
 - Modify query: Add date filter for last quarter
 - Update title: "Revenue Last Quarter"
@@ -124,7 +262,7 @@ Analyze the user's request and modify the props accordingly. Return the complete
 					content: userMessage
 				}
 			],
-			model: 'llama-3.3-70b-versatile',
+			model: GROQ_MODEL,
 			temperature: 0.2,
 			max_tokens: 2500,
 			response_format: { type: 'json_object' }
@@ -172,6 +310,8 @@ export async function validateAndModifyQuery(
 	try {
 		const systemPrompt = `You are an AI assistant that validates and modifies SQL queries based on user requests.
 
+    IMPORTANT: Respond in JSON format.
+
     Given:
     - A user's natural language request
     - An existing SQL query from a component
@@ -217,7 +357,7 @@ export async function validateAndModifyQuery(
 					content: userMessage
 				}
 			],
-			model: 'llama-3.3-70b-versatile',
+			model: 	GROQ_MODEL,
 			temperature: 0.2,
 			max_tokens: 1500,
 			response_format: { type: 'json_object' }
@@ -247,7 +387,8 @@ export async function validateAndModifyQuery(
  * This creates a custom component with appropriate visualization and query
  */
 export async function generateAnalyticalComponent(
-	userPrompt: string
+	userPrompt: string,
+	preferredVisualizationType?: string
 ): Promise<{
 	component: Component | null;
 	reasoning: string;
@@ -256,13 +397,19 @@ export async function generateAnalyticalComponent(
 	const schemaDoc = generateSchemaDocumentation();
 
 	try {
+		const visualizationConstraint = preferredVisualizationType
+			? `\n**IMPORTANT: The user has specifically requested a ${preferredVisualizationType} visualization. You MUST use this type.**\n`
+			: '';
+
 		const systemPrompt = `You are an expert data analyst AI that generates appropriate visualizations and SQL queries for user questions.
 
 Database Schema:
 ${schemaDoc || 'No schema available'}
 
-Given a user's analytical question, your task is to:
+IMPORTANT: You must respond in valid JSON format.
 
+Given a user's analytical question, your task is to:
+${visualizationConstraint}
 1. **Determine the best visualization type:**
    - KPICard: Single metric (total, average, count, min, max, percentage)
      Example: "What is total revenue?", "How many customers?", "Average order value?"
@@ -335,7 +482,7 @@ Analyze this question and generate the appropriate visualization with SQL query.
 					content: userMessage
 				}
 			],
-			model: 'llama-3.3-70b-versatile',
+			model: GROQ_MODEL,
 			temperature: 0.2,
 			max_tokens: 2000,
 			response_format: { type: 'json_object' }
@@ -387,6 +534,326 @@ Analyze this question and generate the appropriate visualization with SQL query.
 	}
 }
 
+/**
+ * Generate multiple dynamic components for analytical questions
+ * This is used when the user needs multiple visualizations
+ */
+export async function generateMultipleAnalyticalComponents(
+	userPrompt: string,
+	visualizationTypes: string[]
+): Promise<{
+	components: Component[];
+	reasoning: string;
+	isGenerated: boolean;
+}> {
+	try {
+		console.log('✓ Generating multiple components:', visualizationTypes);
+
+		const components: Component[] = [];
+
+		// Generate each component type requested
+		for (const vizType of visualizationTypes) {
+			const result = await generateAnalyticalComponent(userPrompt, vizType);
+
+			if (result.component) {
+				components.push(result.component);
+			}
+		}
+
+		if (components.length === 0) {
+			return {
+				components: [],
+				reasoning: 'Failed to generate any components',
+				isGenerated: false
+			};
+		}
+
+		return {
+			components,
+			reasoning: `Generated ${components.length} components: ${visualizationTypes.join(', ')}`,
+			isGenerated: true
+		};
+	} catch (error) {
+		console.error('Error generating multiple analytical components:', error);
+		return {
+			components: [],
+			reasoning: 'Error occurred while generating components',
+			isGenerated: false
+		};
+	}
+}
+
+/**
+ * Generate a complete multi-component response with intelligent container and component props
+ * Uses Groq to determine container title, description, and tailored props for each component
+ */
+export async function generateMultiComponentResponse(
+	userPrompt: string,
+	visualizationTypes: string[]
+): Promise<{
+	containerComponent: Component | null;
+	reasoning: string;
+	isGenerated: boolean;
+}> {
+	const schemaDoc = generateSchemaDocumentation();
+
+	try {
+		const systemPrompt = `You are an expert data analyst AI that creates comprehensive multi-component analytical dashboards.
+
+Database Schema:
+${schemaDoc || 'No schema available'}
+
+IMPORTANT: You must respond in valid JSON format.
+
+Given a user's analytical question and the required visualization types, your task is to:
+
+1. **Determine Container Metadata:**
+   - title: Clear, descriptive title for the entire dashboard (2-5 words)
+   - description: Brief explanation of what insights this dashboard provides (1-2 sentences)
+
+2. **Generate Props for Each Component:**
+   For each visualization type requested, create tailored props:
+
+   - **query**: SQL query specific to this visualization using the database schema
+     * Use correct table and column names
+     * Use Snowflake SQL dialect
+     * ALWAYS include LIMIT clause (default: ${DEFAULT_LIMIT})
+     * For KPICard: Return single row with column alias "value"
+     * For Charts: Return appropriate columns (name/label and value, or x and y)
+     * For Table: Return relevant columns
+
+   - **title**: Specific title for this component (2-4 words)
+
+   - **description**: What this specific component shows (1 sentence)
+
+   - **config**: Type-specific configuration
+     * KPICard: { gradient, formatter, icon }
+     * BarChart: { xKey, yKey, colors, height }
+     * LineChart: { xKey, yKeys, colors, height }
+     * PieChart: { nameKey, valueKey, colors, height }
+     * DataTable: { pageSize }
+
+**Important Guidelines:**
+- Each component should answer a DIFFERENT aspect of the user's question
+- Queries should be complementary, not duplicated
+- If user asks "Show total revenue and trend", generate:
+  * KPICard: Single total value
+  * LineChart: Revenue over time
+- Ensure queries use valid columns from the schema
+- Make titles descriptive and specific to what each component shows
+
+**Output Format:**
+{
+  "containerTitle": "Dashboard Title",
+  "containerDescription": "Brief description of the dashboard insights",
+  "components": [
+    {
+      "componentType": "KPICard" | "BarChart" | "LineChart" | "PieChart" | "DataTable",
+      "query": "SQL query",
+      "title": "Component title",
+      "description": "Component description",
+      "config": { /* type-specific config */ }
+    },
+    ...
+  ],
+  "reasoning": "Explanation of the dashboard design",
+  "canGenerate": boolean
+}`;
+
+		const userMessage = `User question: "${userPrompt}"
+
+Required visualization types: ${visualizationTypes.join(', ')}
+
+Generate a complete multi-component dashboard with appropriate container metadata and tailored props for each component.`;
+
+		const chatCompletion = await groq.chat.completions.create({
+			messages: [
+				{
+					role: 'system',
+					content: systemPrompt
+				},
+				{
+					role: 'user',
+					content: userMessage
+				}
+			],
+			model: GROQ_MODEL,
+			temperature: 0.2,
+			max_tokens: 3000,
+			response_format: { type: 'json_object' }
+		});
+
+		const responseText = chatCompletion.choices[0]?.message?.content || '{}';
+		const result = JSON.parse(responseText);
+
+		if (!result.canGenerate || !result.components || result.components.length === 0) {
+			return {
+				containerComponent: null,
+				reasoning: result.reasoning || 'Unable to generate multi-component dashboard',
+				isGenerated: false
+			};
+		}
+
+		// Build the component array from the result
+		const generatedComponents: Component[] = result.components.map((compData: any, index: number) => {
+			// Ensure query has LIMIT
+			const query = ensureQueryLimit(compData.query, DEFAULT_LIMIT);
+
+			return {
+				id: `dynamic_${compData.componentType.toLowerCase()}_${Date.now()}_${index}`,
+				name: `Dynamic${compData.componentType}`,
+				type: compData.componentType,
+				description: compData.description,
+				category: 'dynamic',
+				keywords: [],
+				props: {
+					query: query,
+					title: compData.title,
+					description: compData.description,
+					config: compData.config || {}
+				}
+			};
+		});
+
+		// Create the MultiComponentContainer wrapper
+		const containerComponent: Component = {
+			id: `multi_container_${Date.now()}`,
+			name: 'MultiComponentContainer',
+			type: 'Container',
+			description: result.containerDescription,
+			category: 'dynamic',
+			keywords: ['multi', 'container', 'dashboard'],
+			props: {
+				config: {
+					components: generatedComponents,
+					layout: 'grid',
+					spacing: 24,
+					title: result.containerTitle,
+					description: result.containerDescription
+				}
+			}
+		};
+
+		return {
+			containerComponent,
+			reasoning: result.reasoning || `Generated multi-component dashboard with ${generatedComponents.length} components`,
+			isGenerated: true
+		};
+	} catch (error) {
+		console.error('Error generating multi-component response:', error);
+		return {
+			containerComponent: null,
+			reasoning: 'Error occurred while generating multi-component dashboard',
+			isGenerated: false
+		};
+	}
+}
+
+/**
+ * Main orchestration function that classifies question and routes to appropriate handler
+ * This is the NEW recommended entry point for handling user requests
+ * ALWAYS returns a SINGLE component (wraps multiple in MultiComponentContainer)
+ */
+export async function handleUserRequest(
+	userPrompt: string,
+	components: Component[]
+): Promise<{
+	component: Component | null;
+	reasoning: string;
+	method: string;
+	questionType: string;
+	needsMultipleComponents: boolean;
+	propsModified?: boolean;
+	queryModified?: boolean;
+}> {
+	try {
+		// Step 1: Classify the user's question
+		console.log('✓ Classifying user question...');
+		const classification = await classifyUserQuestion(userPrompt);
+		console.log(`  Question type: ${classification.questionType}`);
+		console.log(`  Visualizations needed: ${classification.visualizations.join(', ') || 'None'}`);
+		console.log(`  Multiple components: ${classification.needsMultipleComponents}`);
+
+		// Step 2: Route based on question type
+		if (classification.questionType === 'analytical') {
+			// For analytical questions with specific visualization types
+			if (classification.visualizations.length > 0) {
+				if (classification.needsMultipleComponents && classification.visualizations.length > 1) {
+					// Generate multiple components wrapped in MultiComponentContainer
+					console.log('✓ Generating multi-component dashboard...');
+					const result = await generateMultiComponentResponse(
+						userPrompt,
+						classification.visualizations
+					);
+
+					return {
+						component: result.containerComponent,
+						reasoning: result.reasoning,
+						method: 'classification-multi-generated',
+						questionType: classification.questionType,
+						needsMultipleComponents: true,
+						propsModified: false,
+						queryModified: false
+					};
+				} else {
+					// Generate single component with preferred type
+					const vizType = classification.visualizations[0];
+					const result = await generateAnalyticalComponent(userPrompt, vizType);
+
+					return {
+						component: result.component,
+						reasoning: result.reasoning,
+						method: 'classification-generated',
+						questionType: classification.questionType,
+						needsMultipleComponents: false,
+						propsModified: false,
+						queryModified: false
+					};
+				}
+			} else {
+				// No specific visualization type, let AI decide
+				const result = await generateAnalyticalComponent(userPrompt);
+
+				return {
+					component: result.component,
+					reasoning: result.reasoning,
+					method: 'classification-generated-auto',
+					questionType: classification.questionType,
+					needsMultipleComponents: false,
+					propsModified: false,
+					queryModified: false
+				};
+			}
+		} else if (classification.questionType === 'data_modification') {
+			// For data modification, use the old component matching flow
+			console.log('✓ Using component matching for data modification...');
+			const matchResult = await matchComponentFromGroq(userPrompt, components);
+
+			return {
+				component: matchResult.component,
+				reasoning: matchResult.reasoning,
+				method: 'classification-matched',
+				questionType: classification.questionType,
+				needsMultipleComponents: false,
+				propsModified: matchResult.propsModified,
+				queryModified: matchResult.queryModified
+			};
+		} else {
+			// General questions - return empty
+			return {
+				component: null,
+				reasoning: 'General question - no component needed',
+				method: 'classification-general',
+				questionType: classification.questionType,
+				needsMultipleComponents: false
+			};
+		}
+	} catch (error) {
+		console.error('Error handling user request:', error);
+		throw error;
+	}
+}
+
 // Using Groq LLM to match component from a list with enhanced props modification
 export async function matchComponentFromGroq(
 	userPrompt: string,
@@ -417,6 +884,8 @@ export async function matchComponentFromGroq(
 			.join('\n\n');
 
 		const systemPrompt = `You are an expert AI assistant specialized in matching user requests to the most appropriate data visualization components.
+
+IMPORTANT: You must respond in valid JSON format.
 
 Your task is to analyze the user's natural language request and find the BEST matching component from the available list.
 
@@ -488,7 +957,7 @@ Example response:
 					content: `User request: "${userPrompt}"\n\nFind the best matching component and explain your reasoning with a confidence score.`
 				}
 			],
-			model: 'llama-3.3-70b-versatile',
+			model: GROQ_MODEL,
 			temperature: 0.2,
 			max_tokens: 800,
 			response_format: { type: 'json_object' }
@@ -526,6 +995,7 @@ Example response:
 			console.log('✓ Attempting to generate dynamic component from analytical question...');
 
 			// Try to generate a dynamic component for the analytical question
+			// Note: preferredVisualizationType should be passed from the caller if available
 			const generatedResult = await generateAnalyticalComponent(userPrompt);
 
 			if (generatedResult.component) {

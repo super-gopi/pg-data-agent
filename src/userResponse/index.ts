@@ -1,7 +1,7 @@
 import CHROMACOLLECTION from "../chromadb/collections";
 import { WebSocketMessage } from "../websocket/types";
 import { matchComponentFromChromaDB } from "./chorma-vector-search";
-import { matchComponentFromGroq } from "./groq-client";
+import { handleUserRequest, matchComponentFromGroq } from "./groq-client";
 import { matchComponentFromAnthropic } from "./anthropic-client";
 import { Component } from "./types";
 
@@ -28,7 +28,8 @@ export const get_user_response = async (data:any, components: Component[]) => {
                 return {success: false, reason: 'Components not loaded in memory. Please ensure components are fetched first.'};
             }
 
-            matchResult = await matchComponentFromGroq(prompt, components);
+            // matchResult = await matchComponentFromGroq(prompt, components);
+            matchResult = await handleUserRequest(prompt, components);
         } else if (matchingMethod === 'anthropic') {
             // Method 2: Use Anthropic Claude to match from in-memory components
             console.log('Using Anthropic Claude matching method...');
@@ -63,7 +64,8 @@ export const get_user_response = async (data:any, components: Component[]) => {
                     return {success: false, reason: 'ChromaDB unavailable and components not loaded in memory. Cannot process request.'};
                 }
 
-                matchResult = await matchComponentFromGroq(prompt, components);
+                // matchResult = await matchComponentFromGroq(prompt, components);
+                matchResult = await handleUserRequest(prompt, components);
             }
         }
 
